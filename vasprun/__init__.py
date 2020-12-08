@@ -359,7 +359,8 @@ class vasprun:
         for s in dos.find("total").find("array").findall("set"):
             for ss in s.findall("set"):
                 t_dos.append(self.parse_varray_pymatgen(ss))
-        if len(dos.find("partial"))>0:
+        
+        if dos.find("partial") != None:
             for s in dos.find("partial").find("array").findall("set"):
                 for i, ss in enumerate(s.findall("set")):
                     p = []
