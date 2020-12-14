@@ -679,7 +679,7 @@ class vasprun:
         self.values['band_paths'] = band_paths
         self.values['band_points'] = band_points
 
-    def plot_band(self, filename=None, styles='normal', ylim=[-20, 3], plim=[0.0,0.5], saveBands=False, dpi=300):
+    def plot_band(self, filename=None, styles='normal', ylim=[-3, 3], plim=[0.0,0.5], saveBands=False, dpi=300):
         """
         plot the bandstructure
 
@@ -739,6 +739,70 @@ class vasprun:
         else:
             plt.savefig(filename,dpi=dpi)
             plt.close()
+    
+    
+    def plotbands(self, bravais, kpoints, title='', ylim=[-3,3]):
+
+        """
+        plot the bandstructure
+
+        Args:
+            filename: string
+            styles: string (`normal` or `projected`)
+            ylim: list, the range of energy values on the y-axis, e.g. [-5, 3]
+            p_max: float (the ratio of color plot in the `projected` mode)
+
+        Returns:
+            A figure with band structure
+        """
+        cell = self.values["finalpos"]["basis"]
+        self.parse_bandpath()
+        efermi = self.values["calculation"]["efermi"]
+        eigens = np.array(self.values['calculation']['eband_eigenvalues'])
+        paths = self.values['band_paths']
+        band_pts = self.values['band_points']
+        proj = np.array(self.values["calculation"]["projected"]) #[N_kpts, N_band, Ions, 9]
+        cm = plt.cm.get_cmap('RdYlBu')
+        nkpt, nband, nocc = np.shape(eigens)
+        
+        from ase import io
+        from ase.dft.kpoints import ibz_points, get_bandpath, special_paths
+
+
+        # Define special points
+        # See https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html
+        # for special points in different Bravais cells
+        points = ibz_points[bravais]
+        for i in range(len(kpoints)):
+            k = kpoints[i]
+            kpoints[i] = points[k]
+
+        # Define path to be plotted. Has to be the same that was 
+        # calculated by VASP (defined in KPOINTS)
+        path = get_bandpath(kpoints, cell, npoints=nkpt)
+        x2, X2, labels = path.get_linear_kpoint_axis() 
+        labels = [label.replace('G','\Gamma') for label in labels]
+
+
+        # Hardcode plots with even distance between special points:
+        nkpoints=int(nkpt/(len(labels)-1))
+        x1 = list(range(nkpt))
+        X1 = [x1[0]]+x1[nkpoints-1::nkpoints]
+
+        plt.xticks(X1, ['$%s$' % n for n in labels])
+
+        # Create plot
+        for iband in range(nband):
+            band = eigens[:, iband, 0] - efermi
+            plt.plot(x1, band, color='b')
+
+            # Change range:
+            plt.ylim(ylim)
+
+        plt.title(title)
+        plt.xlabel('Wave Vector')
+        plt.ylabel('$E - E_{Fermi}$ (eV)')
+    
 
     def get_dos(self, rows, style='t'):
 
